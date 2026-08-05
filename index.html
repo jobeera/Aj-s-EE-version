@@ -11,6 +11,7 @@
       const applicationMode = window.location.hash === "#applications";
       if (applicationMode) {
         import("/src/application-entry.jsx");
+        import("/src/application-sidebar-collapse.js");
       } else {
         import("/src/main.jsx");
         import("/src/drawer-resize-fix.js");
