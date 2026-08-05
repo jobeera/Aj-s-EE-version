@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   Bell, Search, Users, FileText, Megaphone, MessageSquare, Phone,
   BarChart3, Plug, Settings, Plus, Send, Mail, Bot, X, ChevronLeft,
-  ChevronRight, Download, MoreHorizontal, CheckCircle2
+  ChevronRight, Download, MoreHorizontal, CheckCircle2, PauseCircle
 } from "lucide-react";
 import "./styles.css";
 
@@ -71,6 +71,8 @@ function makeStudents() {
         temperature: ai >= 80 ? "Hot" : ai >= 58 ? "Warm" : "Cold",
         priority: priorities[Math.floor(seeded(id + 11) * priorities.length)],
         progress,
+        parked: false,
+        parkedAt: "",
         lastActivity: ["2 mins ago", "15 mins ago", "1 hr ago", "3 hrs ago", "Yesterday"][Math.floor(seeded(id + 13) * 5)],
         nextFollowUp: ["Today 4:30 PM", "Tomorrow 11:00 AM", "Aug 06, 10:30 AM", "Not scheduled"][Math.floor(seeded(id + 14) * 4)],
       });
@@ -119,26 +121,30 @@ function App() {
   useEffect(() => {
     const move = (event) => {
       if (!resizeRef.current) return;
-      const width = Math.min(window.innerWidth * 0.72, Math.max(360, window.innerWidth - event.clientX));
+      const navigatorWidth = collapsed ? 72 : 236;
+      const width = Math.min(window.innerWidth - navigatorWidth - 18, Math.max(380, window.innerWidth - event.clientX - 10));
       setDrawerWidth(width);
     };
     const up = () => { resizeRef.current = false; document.body.style.cursor = ""; };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
     return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-  }, []);
+  }, [collapsed]);
 
   const selected = students.find((student) => student.id === selectedId) || students[0];
   const counts = useMemo(() => Object.keys(statusCounts).reduce((acc, status) => ({ ...acc, [status]: students.filter((student) => student.status === status).length }), {}), [students]);
+  const parkedCount = students.filter((student) => student.parked).length;
 
   const filtered = useMemo(() => students.filter((student) => {
     const text = [student.name, student.phone, student.email, student.studentId, student.applicationId].join(" ").toLowerCase();
     if (query && !text.includes(query.toLowerCase())) return false;
+    if (savedView === "Parked Leads" && !student.parked) return false;
     return Object.entries(filters).every(([key, value]) => !value || student[key] === value);
-  }), [students, query, filters]);
+  }), [students, query, filters, savedView]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const selectedIndex = filtered.findIndex((student) => student.id === selected.id);
 
   const notify = (message) => {
     setToast(message);
@@ -148,6 +154,24 @@ function App() {
   const updateStudent = (patch) => {
     setStudents((current) => current.map((student) => student.id === selected.id ? { ...student, ...patch } : student));
     notify("Student updated");
+  };
+
+  const selectRelativeLead = (direction) => {
+    if (!filtered.length) return;
+    const nextIndex = Math.min(filtered.length - 1, Math.max(0, selectedIndex + direction));
+    setSelectedId(filtered[nextIndex].id);
+    setApplicationMode(null);
+  };
+
+  const toggleParkLead = () => {
+    const willPark = !selected.parked;
+    setStudents((current) => current.map((student) => student.id === selected.id ? {
+      ...student,
+      parked: willPark,
+      parkedAt: willPark ? "Today, 6:00 PM" : "",
+      nextFollowUp: willPark ? "Today, 6:00 PM" : student.nextFollowUp,
+    } : student));
+    notify(willPark ? "Lead parked for end-of-day follow-up" : "Lead removed from parked list");
   };
 
   const setFilter = (key, value) => {
@@ -191,7 +215,7 @@ function App() {
         </div>
       </aside>
 
-      <main className="main" style={{ marginRight: drawerOpen ? drawerWidth : 0 }}>
+      <main className="main" style={{ marginRight: drawerOpen ? drawerWidth + 10 : 0 }}>
         <header className="topbar">
           <div className="global-search"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search student, email, phone, application, campaign..."/></div>
           <div className="top-actions"><button className="secondary"><Bot size={16}/>AI Assistant</button><button className="icon-button"><Bell size={18}/></button><button className="primary"><Plus size={16}/>Add</button></div>
@@ -199,15 +223,15 @@ function App() {
 
         {module === "students" ? (
           <section className="workspace">
-            <div className="kpi-row">
+            <div className="kpi-row kpi-six">
               {[
                 ["All Leads", students.length], ["Uncontacted", counts.New], ["Interested", counts.Interested],
-                ["Application Started", counts["Application Initiated"]], ["Enrolled", counts.Enrolled],
-              ].map(([label, value]) => <div className="kpi" key={label}><span>{label}</span><b>{fmt(value)}</b><small>↑ {label === "Uncontacted" ? "4.2" : "6.1"}%</small></div>)}
+                ["Application Started", counts["Application Initiated"]], ["Enrolled", counts.Enrolled], ["Parked Leads", parkedCount],
+              ].map(([label, value]) => <button className={`kpi ${label === "Parked Leads" ? "parked-kpi" : ""}`} key={label} onClick={() => label === "Parked Leads" && applyView("Parked Leads")}><span>{label}</span><b>{fmt(value)}</b><small>{label === "Parked Leads" ? "Follow up before EOD" : "↑ 6.1%"}</small></button>)}
             </div>
 
             <div className="saved-views">
-              {["All Leads", "My Hot Students", "Untouched New", "Applications Pending", "Payment Pending"].map((view) => (
+              {["All Leads", "My Hot Students", "Untouched New", "Applications Pending", "Payment Pending", "Parked Leads"].map((view) => (
                 <button key={view} className={savedView === view ? "active" : ""} onClick={() => applyView(view)}>{view}</button>
               ))}
             </div>
@@ -243,7 +267,7 @@ function App() {
                   <tbody>{rows.map((student) => (
                     <tr key={student.id} className={selected.id === student.id ? "selected" : ""} onClick={() => { setSelectedId(student.id); setDrawerOpen(true); setApplicationMode(null); }}>
                       <td onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selectedRows.has(student.id)} onChange={() => setSelectedRows((current) => { const next = new Set(current); next.has(student.id) ? next.delete(student.id) : next.add(student.id); return next; })}/></td>
-                      <td><div className="student-cell"><span className="avatar">{student.name.split(" ").map((part) => part[0]).join("")}</span><div><b>{student.name}</b><small>{student.studentId}</small></div></div></td>
+                      <td><div className="student-cell"><span className="avatar">{student.name.split(" ").map((part) => part[0]).join("")}</span><div><b>{student.name}</b><small>{student.studentId}{student.parked ? " · Parked" : ""}</small></div></div></td>
                       <td>{student.phone}</td><td><b>{student.program}</b><small>{student.specialization} · {student.intake}</small></td><td><b>{student.source}</b><small>{student.campaign}</small></td><td>{student.counselor}</td><td><span className={`status ${student.status.replaceAll(" ", "-").replace("/", "-").toLowerCase()}`}>{student.status}</span></td><td>{student.substatus}</td><td><b>{student.ai}</b><small>{student.temperature} · {student.priority}</small></td><td>{student.lastActivity}</td><td>{student.nextFollowUp}</td><td><MoreHorizontal size={16}/></td>
                     </tr>
                   ))}</tbody>
@@ -258,8 +282,16 @@ function App() {
 
       {drawerOpen && <aside className="drawer" style={{ width: drawerWidth }}>
         <div className="resize-handle" onMouseDown={() => { resizeRef.current = true; document.body.style.cursor = "col-resize"; }}/>
-        <div className="drawer-head"><div><h2>Student 360</h2></div><button onClick={() => setDrawerOpen(false)}><X size={18}/></button></div>
-        <div className="profile"><span className="avatar large">{selected.name.split(" ").map((part) => part[0]).join("")}</span><div><h3>{selected.name}</h3><p>{selected.studentId} · {selected.phone}</p><p>{selected.email}</p></div></div>
+        <div className="drawer-head">
+          <h2>Student 360</h2>
+          <div className="drawer-nav">
+            <button disabled={selectedIndex <= 0} onClick={() => selectRelativeLead(-1)}><ChevronLeft size={15}/>Previous</button>
+            <span>{selectedIndex + 1} of {fmt(filtered.length)}</span>
+            <button disabled={selectedIndex < 0 || selectedIndex >= filtered.length - 1} onClick={() => selectRelativeLead(1)}>Next<ChevronRight size={15}/></button>
+          </div>
+          <div className="drawer-head-actions"><button className={`park-button ${selected.parked ? "active" : ""}`} onClick={toggleParkLead}><PauseCircle size={16}/>{selected.parked ? "Unpark Lead" : "Park Lead"}</button><button className="close-button" onClick={() => setDrawerOpen(false)}><X size={18}/></button></div>
+        </div>
+        <div className="profile"><span className="avatar large">{selected.name.split(" ").map((part) => part[0]).join("")}</span><div><h3>{selected.name}</h3><p>{selected.studentId} · {selected.phone}</p><p>{selected.email}</p>{selected.parked && <span className="parked-note">Parked until {selected.parkedAt}</span>}</div></div>
         <div className="quick-actions">
           <Quick label="WhatsApp" icon={<Send size={17}/>} onClick={() => notify("WhatsApp opened")}/>
           <Quick label="Call" icon={<Phone size={17}/>} onClick={() => notify("Call opened")}/>
@@ -286,36 +318,14 @@ function App() {
   );
 }
 
-function Filter({ label, value, options, onChange }) {
-  return <label className="filter"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}><option value="">All</option>{options.map((option) => <option key={option}>{option}</option>)}</select></label>;
-}
-
+function Filter({ label, value, options, onChange }) { return <label className="filter"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}><option value="">All</option>{options.map((option) => <option key={option}>{option}</option>)}</select></label>; }
 function Quick({ label, icon, onClick }) { return <button className="quick" onClick={onClick}>{icon}<span>{label}</span></button>; }
-
-function Overview({ student, onUpdate, onApplication }) {
-  return <>
-    <div className="overview-grid"><Info label="AI Score" value={`${student.ai}/100`}/><Info label="Status" value={student.status}/><Info label="Stage" value={student.substatus}/><Info label="Next Follow-up" value={student.nextFollowUp}/></div>
-    <div className="panel"><h4>AI Summary</h4><p>{student.name} is a {student.temperature.toLowerCase()} lead interested in {student.program} ({student.specialization}). Recent engagement indicates {student.ai >= 75 ? "high" : "moderate"} conversion potential.</p></div>
-    <div className="panel"><h4>Lead Information</h4><div className="info-columns"><Info label="Program" value={`${student.program} (${student.specialization})`}/><Info label="Intake" value={student.intake}/><Info label="Source" value={student.source}/><Info label="Campaign" value={student.campaign}/><Info label="Counselor" value={student.counselor}/><Info label="Priority" value={student.priority}/></div><div className="inline-controls"><select value={student.status} onChange={(event) => onUpdate({ status: event.target.value, substatus: substatuses[event.target.value][0] })}>{Object.keys(statusCounts).map((status) => <option key={status}>{status}</option>)}</select><select value={student.substatus} onChange={(event) => onUpdate({ substatus: event.target.value })}>{substatuses[student.status].map((item) => <option key={item}>{item}</option>)}</select></div></div>
-    <ApplicationCard student={student} onOpen={onApplication}/>
-    <div className="panel"><h4>Latest Communications</h4><CommunicationRow icon="WA" title="WhatsApp sent" meta="2 mins ago" text="Programme details and scholarship information"/><CommunicationRow icon="CL" title="Counselor call" meta="3 hrs ago" text="Connected for 3m 42s"/><CommunicationRow icon="EM" title="Email opened" meta="Yesterday" text="PGDM brochure and fee structure"/></div>
-  </>;
-}
-
-function ApplicationCard({ student, onOpen }) {
-  const progress = Math.max(30, student.progress);
-  return <div className="panel application-card"><div className="panel-title"><div><h4>Applications (1)</h4><b>{student.program} ({student.specialization}) · {student.intake}</b><small>{student.applicationId}</small></div><span className="application-badge">In Progress</span></div><div className="progress-label"><span>Progress</span><b>{progress}%</b></div><div className="progress"><i style={{ width: `${progress}%` }}/></div><div className="application-actions"><button onClick={() => onOpen("view")}>View Application</button><button className="edit" onClick={() => onOpen("edit")}>Edit Application</button></div></div>;
-}
-
-function ApplicationEditor({ student, mode, onBack, onSave }) {
-  const readonly = mode === "view";
-  return <div className="application-editor"><div className="editor-head"><div><h3>{readonly ? "View" : "Edit"} Application</h3><p>{student.applicationId} · {student.program}</p></div><button onClick={onBack}>Back</button></div><div className="form-grid"><Field label="Full Name" value={student.name} readonly={readonly}/><Field label="Mobile" value={student.phone} readonly={readonly}/><Field label="Email" value={student.email} readonly={readonly} full/><Field label="Program" value={student.program} readonly={readonly}/><Field label="Specialization" value={student.specialization} readonly={readonly}/><Field label="Intake" value={student.intake} readonly={readonly}/><Field label="Date of Birth" value="15-Aug-2004" readonly={readonly}/><Field label="Parent Name" value="Rajesh Iyer" readonly={readonly}/><Field label="Parent Mobile" value="+91 98220 99887" readonly={readonly}/><Field label="Address" value="Baner, Pune, Maharashtra" readonly={readonly} full textarea/></div><div className="panel"><h4>Documents</h4><DocumentRow name="10th Marksheet" status="Verified"/><DocumentRow name="12th Marksheet" status="Verified"/><DocumentRow name="Aadhaar" status="DigiLocker Verified"/><DocumentRow name="Entrance Scorecard" status="Pending"/></div>{!readonly && <button className="save-application" onClick={onSave}><CheckCircle2 size={16}/>Save Application</button>}</div>;
-}
-
+function Overview({ student, onUpdate, onApplication }) { return <><div className="overview-grid"><Info label="AI Score" value={`${student.ai}/100`}/><Info label="Status" value={student.status}/><Info label="Stage" value={student.substatus}/><Info label="Next Follow-up" value={student.nextFollowUp}/></div><div className="panel"><h4>AI Summary</h4><p>{student.name} is a {student.temperature.toLowerCase()} lead interested in {student.program} ({student.specialization}). Recent engagement indicates {student.ai >= 75 ? "high" : "moderate"} conversion potential.</p></div><div className="panel"><h4>Lead Information</h4><div className="info-columns"><Info label="Program" value={`${student.program} (${student.specialization})`}/><Info label="Intake" value={student.intake}/><Info label="Source" value={student.source}/><Info label="Campaign" value={student.campaign}/><Info label="Counselor" value={student.counselor}/><Info label="Priority" value={student.priority}/></div><div className="inline-controls"><select value={student.status} onChange={(event) => onUpdate({ status: event.target.value, substatus: substatuses[event.target.value][0] })}>{Object.keys(statusCounts).map((status) => <option key={status}>{status}</option>)}</select><select value={student.substatus} onChange={(event) => onUpdate({ substatus: event.target.value })}>{substatuses[student.status].map((item) => <option key={item}>{item}</option>)}</select></div></div><ApplicationCard student={student} onOpen={onApplication}/><div className="panel"><h4>Latest Communications</h4><CommunicationRow icon="WA" title="WhatsApp sent" meta="2 mins ago" text="Programme details and scholarship information"/><CommunicationRow icon="CL" title="Counselor call" meta="3 hrs ago" text="Connected for 3m 42s"/><CommunicationRow icon="EM" title="Email opened" meta="Yesterday" text="PGDM brochure and fee structure"/></div></>; }
+function ApplicationCard({ student, onOpen }) { const progress = Math.max(30, student.progress); return <div className="panel application-card"><div className="panel-title"><div><h4>Applications (1)</h4><b>{student.program} ({student.specialization}) · {student.intake}</b><small>{student.applicationId}</small></div><span className="application-badge">In Progress</span></div><div className="progress-label"><span>Progress</span><b>{progress}%</b></div><div className="progress"><i style={{ width: `${progress}%` }}/></div><div className="application-actions"><button onClick={() => onOpen("view")}>View Application</button><button className="edit" onClick={() => onOpen("edit")}>Edit Application</button></div></div>; }
+function ApplicationEditor({ student, mode, onBack, onSave }) { const readonly = mode === "view"; return <div className="application-editor"><div className="editor-head"><div><h3>{readonly ? "View" : "Edit"} Application</h3><p>{student.applicationId} · {student.program}</p></div><button onClick={onBack}>Back</button></div><div className="form-grid"><Field label="Full Name" value={student.name} readonly={readonly}/><Field label="Mobile" value={student.phone} readonly={readonly}/><Field label="Email" value={student.email} readonly={readonly} full/><Field label="Program" value={student.program} readonly={readonly}/><Field label="Specialization" value={student.specialization} readonly={readonly}/><Field label="Intake" value={student.intake} readonly={readonly}/><Field label="Date of Birth" value="15-Aug-2004" readonly={readonly}/><Field label="Parent Name" value="Rajesh Iyer" readonly={readonly}/><Field label="Parent Mobile" value="+91 98220 99887" readonly={readonly}/><Field label="Address" value="Baner, Pune, Maharashtra" readonly={readonly} full textarea/></div><div className="panel"><h4>Documents</h4><DocumentRow name="10th Marksheet" status="Verified"/><DocumentRow name="12th Marksheet" status="Verified"/><DocumentRow name="Aadhaar" status="DigiLocker Verified"/><DocumentRow name="Entrance Scorecard" status="Pending"/></div>{!readonly && <button className="save-application" onClick={onSave}><CheckCircle2 size={16}/>Save Application</button>}</div>; }
 function Timeline({ student }) { return <div className="timeline"><TimelineItem time="Today, 10:24 AM" title="AI WhatsApp" text="Student asked about scholarship eligibility and application fee."/><TimelineItem time="Today, 9:42 AM" title="Counselor Call" text={`Programme outcomes explained by ${student.counselor}.`}/><TimelineItem time="Yesterday" title="Application Started" text={`${Math.max(30, student.progress)}% application completed.`}/><TimelineItem time="2 days ago" title="Campaign Touch" text={`${student.source} · ${student.campaign}`}/></div>; }
 function Communications() { return <div className="panel"><h4>Communication History</h4><CommunicationRow icon="WA" title="WhatsApp" meta="2 mins ago" text="Programme and scholarship details delivered"/><CommunicationRow icon="CL" title="Outbound Call" meta="3 hrs ago" text="Connected for 3m 42s"/><CommunicationRow icon="AI" title="AI Call" meta="Yesterday" text="Eligibility confirmation completed"/><CommunicationRow icon="SM" title="SMS" meta="Yesterday" text="Application link delivered"/><CommunicationRow icon="EM" title="Email" meta="2 days ago" text="Brochure opened"/></div>; }
 function AISummary({ student }) { return <><div className="panel ai-panel"><h4>AI Student Summary</h4><p>{student.name} has engaged through {student.source} and has shown interest in {student.program} ({student.specialization}). The recommended next action is a counselor follow-up with scholarship and fee information.</p></div><div className="panel"><h4>WhatsApp Summary</h4><p>Positive sentiment. Asked about eligibility, scholarship, fees and campus accommodation.</p></div><div className="panel"><h4>Call Summary</h4><p>Requested a parent callback and detailed application guidance.</p></div></>; }
-
 function Info({ label, value }) { return <div className="info"><span>{label}</span><b>{value}</b></div>; }
 function Field({ label, value, readonly, full, textarea }) { return <label className={`field ${full ? "full" : ""}`}><span>{label}</span>{textarea ? <textarea defaultValue={value} readOnly={readonly} rows={3}/> : <input defaultValue={value} readOnly={readonly}/>}</label>; }
 function DocumentRow({ name, status }) { return <div className="document-row"><span>{name}</span><b>{status}</b></div>; }
