@@ -7,7 +7,21 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-    <script type="module" src="/src/drawer-resize-fix.js"></script>
+    <script type="module">
+      const applicationMode = window.location.hash === "#applications";
+      if (applicationMode) {
+        import("/src/application-entry.jsx");
+      } else {
+        import("/src/main.jsx");
+        import("/src/drawer-resize-fix.js");
+        window.addEventListener("click", (event) => {
+          const target = event.target.closest("button");
+          if (target && /applications/i.test(target.textContent || "")) {
+            window.location.hash = "applications";
+            window.location.reload();
+          }
+        }, true);
+      }
+    </script>
   </body>
 </html>
