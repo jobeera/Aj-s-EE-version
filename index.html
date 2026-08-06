@@ -8,8 +8,10 @@
   <body>
     <div id="root"></div>
     <script type="module">
-      const applicationMode = window.location.hash === "#applications";
-      if (applicationMode) {
+      const mode = window.location.hash;
+      if (mode === "#workflows") {
+        import("/src/workflow-entry.jsx");
+      } else if (mode === "#applications") {
         import("/src/application-entry.jsx");
         import("/src/application-sidebar-collapse.js");
         import("/src/application-view-edit.js");
@@ -18,8 +20,14 @@
         import("/src/drawer-resize-fix.js");
         window.addEventListener("click", (event) => {
           const target = event.target.closest("button");
-          if (target && /applications/i.test(target.textContent || "")) {
+          if (!target) return;
+          const text = target.textContent || "";
+          if (/applications/i.test(text)) {
             window.location.hash = "applications";
+            window.location.reload();
+          }
+          if (/workflow/i.test(text)) {
+            window.location.hash = "workflows";
             window.location.reload();
           }
         }, true);
