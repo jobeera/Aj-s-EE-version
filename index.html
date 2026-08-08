@@ -31,12 +31,13 @@
           if (/applications/i.test(text)) { window.location.hash = "applications"; window.location.reload(); }
           if (/workflow/i.test(text)) { window.location.hash = "workflows"; window.location.reload(); }
           if (/audience/i.test(text)) { window.location.hash = "audiences"; window.location.reload(); }
-          if (/campaign/i.test(text)) { window.location.hash = "campaigns"; window.location.reload(); }
+          if (/campaign studio/i.test(text)) { window.location.hash = "campaigns"; window.location.reload(); }
         }, true);
       }
       import("/src/parity-controls.js");
       import("/src/workflow-nav.js");
       import("/src/growth-nav.js");
+      import("/src/universal-shell.js");
     </script>
   </body>
 </html>
