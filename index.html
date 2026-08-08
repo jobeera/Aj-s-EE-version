@@ -15,6 +15,12 @@
         import("/src/application-entry.jsx");
         import("/src/application-sidebar-collapse.js");
         import("/src/application-view-edit.js");
+      } else if (mode === "#audiences") {
+        import("/src/audience-entry.jsx");
+      } else if (mode === "#campaigns") {
+        import("/src/campaign-entry.jsx");
+      } else if (mode === "#analytics-growth") {
+        import("/src/analytics-growth-entry.jsx");
       } else {
         import("/src/main.jsx");
         import("/src/drawer-resize-fix.js");
@@ -22,18 +28,15 @@
           const target = event.target.closest("button");
           if (!target) return;
           const text = target.textContent || "";
-          if (/applications/i.test(text)) {
-            window.location.hash = "applications";
-            window.location.reload();
-          }
-          if (/workflow/i.test(text)) {
-            window.location.hash = "workflows";
-            window.location.reload();
-          }
+          if (/applications/i.test(text)) { window.location.hash = "applications"; window.location.reload(); }
+          if (/workflow/i.test(text)) { window.location.hash = "workflows"; window.location.reload(); }
+          if (/audience/i.test(text)) { window.location.hash = "audiences"; window.location.reload(); }
+          if (/campaign/i.test(text)) { window.location.hash = "campaigns"; window.location.reload(); }
         }, true);
       }
       import("/src/parity-controls.js");
       import("/src/workflow-nav.js");
+      import("/src/growth-nav.js");
     </script>
   </body>
 </html>
