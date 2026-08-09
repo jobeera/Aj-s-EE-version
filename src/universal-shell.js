@@ -1,13 +1,12 @@
 const ROUTES = [
   { id: 'leads', label: 'Lead Manager', type: 'root', target: 'Lead Manager', icon: 'users' },
-  { id: 'applications', label: 'Applications', type: 'hash', hash: 'applications', icon: 'file' },
-  { id: 'campaigns', label: 'Campaigns', type: 'root', target: 'Campaigns', icon: 'megaphone' },
+  { id: 'applications', label: 'Application Manager', type: 'hash', hash: 'applications', icon: 'file' },
   { id: 'audiences', label: 'Audience Builder', type: 'hash', hash: 'audiences', icon: 'filter' },
-  { id: 'campaign-studio', label: 'Campaign Studio', type: 'hash', hash: 'campaigns', icon: 'sparkles' },
+  { id: 'campaign-studio', label: 'Campaign Studio', type: 'hash', hash: 'campaigns', icon: 'megaphone' },
+  { id: 'workflow', label: 'Workflow Studio', type: 'hash', hash: 'workflows', icon: 'workflow' },
   { id: 'communications', label: 'Communications', type: 'root', target: 'Communications', icon: 'message' },
   { id: 'calling', label: 'AI Calling', type: 'root', target: 'AI Calling', icon: 'phone' },
   { id: 'analytics', label: 'Reports & Analytics', type: 'hash', hash: 'analytics-growth', icon: 'chart' },
-  { id: 'workflow', label: 'Workflow Studio', type: 'hash', hash: 'workflows', icon: 'workflow' },
   { id: 'integrations', label: 'Integrations', type: 'root', target: 'Integrations', icon: 'plug' },
   { id: 'settings', label: 'Settings', type: 'root', target: 'Settings', icon: 'settings' },
 ];
@@ -17,7 +16,6 @@ const paths = {
   file:'<path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5"/><path d="M9 12h6M9 16h6"/>',
   megaphone:'<path d="m3 11 13-5v12L3 13z"/><path d="M7 14v5a2 2 0 0 0 2 2h1"/>',
   filter:'<path d="M4 5h16M7 12h10M10 19h4"/>',
-  sparkles:'<path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7z"/>',
   message:'<path d="M4 4h16v13H8l-4 4z"/>',
   phone:'<path d="M6 3h4l2 5-3 2a14 14 0 0 0 5 5l2-3 5 2v4c0 2-2 3-4 3C9 20 4 15 3 7c0-2 1-4 3-4z"/>',
   chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -26,85 +24,14 @@ const paths = {
   settings:'<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5L9 6a8 8 0 0 0-1.7 1L5 6 3 9.5 5.1 11a7 7 0 0 0 0 2L3 14.5 5 18l2.3-1a8 8 0 0 0 1.7 1l.5 3h5l.5-3a8 8 0 0 0 1.7-1l2.3 1 2-3.5L18.9 13a7 7 0 0 0 .1-1z"/>'
 };
 
-function icon(name){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.sparkles}</svg>`}
-
-function activeId(){
-  const h=location.hash.replace('#','');
-  if(h==='applications')return'applications';
-  if(h==='audiences')return'audiences';
-  if(h==='campaigns')return'campaign-studio';
-  if(h==='analytics-growth')return'analytics';
-  if(h==='workflows')return'workflow';
-  return sessionStorage.getItem('eeActiveModule')||'leads';
-}
-
-function goto(route){
-  sessionStorage.setItem('eeActiveModule', route.id);
-  if(route.type==='hash'){
-    if(location.hash===`#${route.hash}`)return;
-    location.hash=route.hash;
-    location.reload();
-    return;
-  }
-  if(location.hash){
-    sessionStorage.setItem('eeRootTarget', route.target);
-    location.hash='';
-    location.reload();
-    return;
-  }
-  const original=[...document.querySelectorAll('[data-ee-original-sidebar] button, aside.sidebar button, aside.side button, aside.g-sidebar button')]
-    .find(b=>(b.textContent||'').trim().toLowerCase()===route.target.toLowerCase() || (b.textContent||'').toLowerCase().includes(route.target.toLowerCase()));
-  if(original) original.click();
-  setActive(route.id);
-}
-
+function icon(name){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.users}</svg>`}
+function activeId(){const h=location.hash.replace('#','');if(h==='applications')return'applications';if(h==='audiences')return'audiences';if(h==='campaigns')return'campaign-studio';if(h==='analytics-growth')return'analytics';if(h==='workflows')return'workflow';return sessionStorage.getItem('eeActiveModule')||'leads'}
 function setActive(id){document.querySelectorAll('.ee-nav-item').forEach(b=>b.classList.toggle('active',b.dataset.id===id))}
-
-function install(){
-  if(document.querySelector('.ee-universal-sidebar'))return;
-  const original=document.querySelector('aside.sidebar, aside.side, aside.g-sidebar');
-  if(!original)return;
-  original.dataset.eeOriginalSidebar='1';
-  original.style.display='none';
-
-  const side=document.createElement('aside');
-  side.className='ee-universal-sidebar';
-  side.innerHTML=`<div class="ee-brand"><div class="ee-logo">E</div><span class="ee-label">ExtraaEdge</span></div><nav>${ROUTES.map(r=>`<button class="ee-nav-item ${activeId()===r.id?'active':''}" data-id="${r.id}" type="button">${icon(r.icon)}<span class="ee-label">${r.label}</span></button>`).join('')}</nav><div class="ee-metrics ee-label"><div><span>Today's Follow-ups</span><b>128</b></div><div><span>Pending Tasks</span><b>27</b></div><div><span>AI Queue</span><b>19</b></div></div>`;
-  document.body.appendChild(side);
-  side.querySelectorAll('.ee-nav-item').forEach((b,i)=>b.addEventListener('click',()=>goto(ROUTES[i])));
-
-  let leaveTimer;
-  const expand=()=>{clearTimeout(leaveTimer);document.body.classList.remove('ee-shell-collapsed')};
-  const collapse=()=>{clearTimeout(leaveTimer);leaveTimer=setTimeout(()=>document.body.classList.add('ee-shell-collapsed'),1200)};
-  side.addEventListener('mouseenter',expand);
-  side.addEventListener('mouseleave',collapse);
-
-  const target=sessionStorage.getItem('eeRootTarget');
-  if(!location.hash&&target){
-    sessionStorage.removeItem('eeRootTarget');
-    setTimeout(()=>{
-      const btn=[...document.querySelectorAll('[data-ee-original-sidebar] button')].find(b=>(b.textContent||'').toLowerCase().includes(target.toLowerCase()));
-      if(btn)btn.click();
-    },60);
-  }
-}
-
-const style=document.createElement('style');
-style.textContent=`
-.ee-universal-sidebar{position:fixed;inset:0 auto 0 0;width:236px;background:#0c3154;color:#fff;padding:14px 12px;z-index:1000;display:flex;flex-direction:column;transition:width .22s ease;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.ee-brand{height:52px;display:flex;align-items:center;gap:11px;padding:0 8px 14px;border-bottom:1px solid rgba(255,255,255,.14);font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden}
-.ee-logo{width:34px;height:34px;border-radius:9px;background:#f57b20;display:grid;place-items:center;flex:none}
-.ee-universal-sidebar nav{padding-top:14px;display:grid;gap:4px;overflow:auto;scrollbar-width:none}
-.ee-universal-sidebar nav::-webkit-scrollbar{display:none}
-.ee-nav-item{height:42px;border:0;background:transparent;color:#dbe8f4;border-radius:9px;display:flex;align-items:center;gap:12px;padding:0 12px;cursor:pointer;white-space:nowrap;text-align:left;font:inherit;font-size:14px;overflow:hidden}
-.ee-nav-item svg{width:18px;height:18px;flex:none}
-.ee-nav-item:hover,.ee-nav-item.active{background:rgba(255,255,255,.16);color:#fff}
-.ee-metrics{margin-top:auto;border-top:1px solid rgba(255,255,255,.14);padding:12px 8px;display:grid;gap:10px;white-space:nowrap;overflow:hidden}
-.ee-metrics div{display:flex;justify-content:space-between;font-size:11px;color:#c7d8e8;gap:20px}.ee-metrics b{color:#fff}
-body.ee-shell-collapsed .ee-universal-sidebar{width:72px}.ee-label{transition:opacity .15s ease}body.ee-shell-collapsed .ee-label{opacity:0;pointer-events:none}
-body:has(.ee-universal-sidebar) .main,body:has(.ee-universal-sidebar) .g-main,body:has(.ee-universal-sidebar) main{margin-left:236px!important;transition:margin-left .22s ease!important}
-body.ee-shell-collapsed .main,body.ee-shell-collapsed .g-main,body.ee-shell-collapsed main{margin-left:72px!important}
-@media(max-width:900px){.ee-universal-sidebar{width:72px}.ee-universal-sidebar .ee-label{opacity:0;pointer-events:none}body:has(.ee-universal-sidebar) .main,body:has(.ee-universal-sidebar) .g-main,body:has(.ee-universal-sidebar) main{margin-left:72px!important}}
-`;
-document.head.appendChild(style);
-install();new MutationObserver(install).observe(document.documentElement,{childList:true,subtree:true});
+function goto(route){sessionStorage.setItem('eeActiveModule',route.id);if(route.type==='hash'){if(location.hash===`#${route.hash}`){setActive(route.id);return}location.hash=route.hash;location.reload();return}if(location.hash){sessionStorage.setItem('eeRootTarget',route.target);location.hash='';location.reload();return}const original=[...document.querySelectorAll('[data-ee-original-sidebar] button')].find(b=>(b.textContent||'').toLowerCase().includes(route.target.toLowerCase()));if(original)original.click();setActive(route.id)}
+function hideOriginalSidebars(){document.querySelectorAll('aside.sidebar, aside.side, aside.g-sidebar').forEach(side=>{if(side.classList.contains('ee-universal-sidebar'))return;side.dataset.eeOriginalSidebar='1';side.style.display='none'})}
+function install(){hideOriginalSidebars();if(document.querySelector('.ee-universal-sidebar'))return;const side=document.createElement('aside');side.className='ee-universal-sidebar';side.setAttribute('aria-label','Primary navigation');side.innerHTML=`<div class="ee-brand"><div class="ee-logo">E</div><span class="ee-label">ExtraaEdge</span></div><nav>${ROUTES.map(r=>`<button class="ee-nav-item ${activeId()===r.id?'active':''}" data-id="${r.id}" type="button">${icon(r.icon)}<span class="ee-label">${r.label}</span></button>`).join('')}</nav><div class="ee-metrics ee-label"><div><span>Today's Follow-ups</span><b>128</b></div><div><span>Pending Tasks</span><b>27</b></div><div><span>AI Queue</span><b>19</b></div></div>`;document.body.appendChild(side);side.querySelectorAll('.ee-nav-item').forEach((b,i)=>b.addEventListener('click',()=>goto(ROUTES[i])));let leaveTimer;const expand=()=>{clearTimeout(leaveTimer);document.body.classList.remove('ee-shell-collapsed')};const collapse=()=>{clearTimeout(leaveTimer);leaveTimer=setTimeout(()=>document.body.classList.add('ee-shell-collapsed'),900)};side.addEventListener('mouseenter',expand);side.addEventListener('mouseleave',collapse);const target=sessionStorage.getItem('eeRootTarget');if(!location.hash&&target){sessionStorage.removeItem('eeRootTarget');setTimeout(()=>{const btn=[...document.querySelectorAll('[data-ee-original-sidebar] button')].find(b=>(b.textContent||'').toLowerCase().includes(target.toLowerCase()));if(btn)btn.click()},80)}}
+const style=document.createElement('style');style.id='ee-universal-shell-style';style.textContent=`
+:root{--ee-nav-expanded:236px;--ee-nav-collapsed:72px;--ee-navy:#0c3154;--ee-orange:#f57b20}
+.ee-universal-sidebar{box-sizing:border-box;position:fixed;inset:0 auto 0 0;width:var(--ee-nav-expanded);background:var(--ee-navy);color:#fff;padding:14px 12px;z-index:9999;display:flex;flex-direction:column;transition:width .2s ease;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:1px 0 0 rgba(255,255,255,.05)}
+.ee-brand{height:52px;box-sizing:border-box;display:flex;align-items:center;gap:11px;padding:0 8px 14px;border-bottom:1px solid rgba(255,255,255,.14);font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden}.ee-logo{width:34px;height:34px;border-radius:9px;background:var(--ee-orange);display:grid;place-items:center;flex:none}.ee-universal-sidebar nav{padding-top:14px;display:grid;gap:4px;overflow:auto;scrollbar-width:none}.ee-universal-sidebar nav::-webkit-scrollbar{display:none}.ee-nav-item{height:42px;border:0;background:transparent;color:#dbe8f4;border-radius:9px;display:flex;align-items:center;gap:12px;padding:0 12px;cursor:pointer;white-space:nowrap;text-align:left;font:inherit;font-size:14px;overflow:hidden}.ee-nav-item svg{width:18px;height:18px;flex:none}.ee-nav-item:hover{background:rgba(255,255,255,.09);color:#fff}.ee-nav-item.active{background:#174d80;color:#fff;font-weight:650}.ee-metrics{margin-top:auto;border-top:1px solid rgba(255,255,255,.14);padding:12px 8px;display:grid;gap:10px;white-space:nowrap;overflow:hidden}.ee-metrics div{display:flex;justify-content:space-between;font-size:11px;color:#c7d8e8;gap:20px}.ee-metrics b{color:#fff}.ee-label{transition:opacity .12s ease}body.ee-shell-collapsed .ee-universal-sidebar{width:var(--ee-nav-collapsed)}body.ee-shell-collapsed .ee-label{opacity:0;pointer-events:none}body:has(.ee-universal-sidebar) .main,body:has(.ee-universal-sidebar) .g-main,body:has(.ee-universal-sidebar) main{margin-left:var(--ee-nav-expanded)!important;transition:margin-left .2s ease!important}body.ee-shell-collapsed .main,body.ee-shell-collapsed .g-main,body.ee-shell-collapsed main{margin-left:var(--ee-nav-collapsed)!important}@media(max-width:900px){.ee-universal-sidebar{width:var(--ee-nav-collapsed)}.ee-universal-sidebar .ee-label{opacity:0;pointer-events:none}body:has(.ee-universal-sidebar) .main,body:has(.ee-universal-sidebar) .g-main,body:has(.ee-universal-sidebar) main{margin-left:var(--ee-nav-collapsed)!important}}
+`;document.head.appendChild(style);install();new MutationObserver(()=>{hideOriginalSidebars();install()}).observe(document.documentElement,{childList:true,subtree:true});
