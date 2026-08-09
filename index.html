@@ -8,6 +8,7 @@
   <body>
     <div id="root"></div>
     <script type="module">
+      import("/src/product-system.js");
       const mode = window.location.hash;
       if (mode === "#workflows") {
         import("/src/workflow-entry.jsx");
